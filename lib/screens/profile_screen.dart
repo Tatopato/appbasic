@@ -1,15 +1,15 @@
-import 'package:app_name_v2/constants/app_colors.dart';
-
+import '../constants/app_colors.dart';
 import '../constants/app_text_styles.dart';
 import 'package:flutter/material.dart';
-
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Column(
+      backgroundColor: AppColors.bgprimary,
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(8.0),
+        child: Column(
         mainAxisAlignment: MainAxisAlignment.start,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -27,7 +27,7 @@ class ProfileScreen extends StatelessWidget {
                 const CircleAvatar(
                   radius: 80,
                   backgroundColor: AppColors.accent,
-                  backgroundImage: AssetImage('assets/images/handsome.jpg'),
+                  backgroundImage: AssetImage('assets/images/สื่อ.jpg'),
                 ),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -69,36 +69,36 @@ class ProfileScreen extends StatelessWidget {
                 size: 26,
               ),
               const SizedBox(width: 10),
-              Text('Name : นราธิป สาลีกุล', style: AppTextStyles.heading1),
+              Text('Name : Narathip Saleekul', style: AppTextStyles.heading1),
             ],
           ),
-          
+         
            Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 250.0), 
+            padding: const EdgeInsets.symmetric(horizontal: 250.0),
             child: Stack(
               children: [
                 Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.symmetric(vertical: 16.0, horizontal: 30.0), 
+                  padding: const EdgeInsets.symmetric(vertical: 16.0, horizontal: 30.0),
                   decoration: BoxDecoration(
                     color: Colors.transparent,
                     border: Border.all(
                       color: Colors.grey.shade400,
-                      width: 1.2, 
+                      width: 1.2,
                     ),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Text(
-                    'หมูกรอบ', 
-                    textAlign: TextAlign.center, 
+                    'หมูกรอบ',
+                    textAlign: TextAlign.center,
                     style: AppTextStyles.heading3.copyWith(
                       color: Colors.grey.shade700,
-                      fontWeight: FontWeight.bold, 
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
                 ),
                 Positioned(
-                  bottom: 8, 
+                  bottom: 8,
                   right: 8,
                   child: GestureDetector(
                     child: const Icon(
@@ -156,7 +156,7 @@ class ProfileScreen extends StatelessWidget {
                     onTap: () {},
                   ),
                   const Divider(color: Colors.black12, thickness: 1, height: 1),
-
+ 
                   ListTile(
                     contentPadding: EdgeInsets.zero,
                     leading: const Icon(
@@ -175,7 +175,7 @@ class ProfileScreen extends StatelessWidget {
                     onTap: () {},
                   ),
                   const Divider(color: Colors.black12, thickness: 1, height: 1),
-
+ 
                   ListTile(
                     contentPadding: EdgeInsets.zero,
                     leading: const Icon(
@@ -210,6 +210,7 @@ class ProfileScreen extends StatelessWidget {
           const SizedBox(height: 30),
         ],
       ),
+      )
     );
   }
 }
