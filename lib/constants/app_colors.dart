@@ -9,16 +9,16 @@ class AppColors{
 
   //Background color
   static const Color bgprimary = Color.fromARGB(255, 183, 183, 184);
-  static const Color bgsecondary = Color.fromRGBO(1, 218, 142, 1);
+  static const Color bgsecondary = Color.fromRGBO(1, 189, 145, 1);
 
   //text color
   static const Color textprimary = Color.fromARGB(255, 0, 0, 0);
   static const Color textsecondary = Color.fromARGB(255, 214, 0, 0);
 
   //status color
-  static const Color success = Color.fromARGB(1, 9, 255, 0);
-  static const Color danger = Color.fromARGB(1, 255, 0, 0);
-  static const Color warning = Color.fromARGB(1, 238, 255, 0);
+  static const Color success = Color.fromARGB(255, 4, 230, 15);
+  static const Color danger = Color.fromARGB(255, 172, 4, 4);
+  static const Color warning = Color.fromARGB(255, 238, 255, 0);
 
 
 

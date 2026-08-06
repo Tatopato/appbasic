@@ -1,4 +1,5 @@
-import 'package:app_name_v2/screens/profile_screen.dart';
+//import 'package:app_name_v2/screens/login.dart';
+import 'package:app_name_v2/screens/register_screen.dart';
 import 'package:flutter/material.dart';
 //import 'screens/home_screen.dart';
 
@@ -25,7 +26,7 @@ class MyApp extends StatelessWidget {
       // },
 
       // initialRoute: '/profile',
-      home: const ProfileScreen(),
+      home: const RegisterScreen(),
     );
   }
 }
