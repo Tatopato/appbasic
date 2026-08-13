@@ -3,40 +3,38 @@ import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
-
-import 'profile_screen.dart';
 import '../constants/app_colors.dart';
 import '../constants/app_text_styles.dart';
-import 'register_screen.dart';
+import 'login_page.dart';
 
-class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+class RegisterScreen extends StatefulWidget {
+  const RegisterScreen({super.key});
 
   @override
-  State<LoginScreen> createState() => _LoginScreenState();
+  State<RegisterScreen> createState() => _RegisterScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin {
+class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStateMixin {
   final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+  final TextEditingController _confirmPasswordController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
 
   late final AnimationController _starController;
   late final AnimationController _entryController;
-  late final AnimationController _floatingController; // สำหรับการ์ตูนลอยน้ำ
-  late final TapGestureRecognizer _registerTapRecognizer;
+  late final AnimationController _floatingController; // เพิ่ม Controller สำหรับนักบินอวกาศ
+  late final TapGestureRecognizer _loginTapRecognizer;
 
   @override
   void initState() {
     super.initState();
-
-    // อนิเมชันดวงดาวฉากหลัง
+    // อนิเมชั่นดวงดาว (ฉากหลัง)
     _starController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 4),
     )..repeat(reverse: true);
 
-    // อนิเมชันการปรากฏตัวของ UI
+    // อนิเมชั่นการปรากฏของ UI (เลื่อนขึ้นและ Fade in)
     _entryController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1200),
@@ -48,11 +46,11 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
       duration: const Duration(seconds: 2),
     )..repeat(reverse: true);
 
-    _registerTapRecognizer = TapGestureRecognizer()
+    _loginTapRecognizer = TapGestureRecognizer()
       ..onTap = () {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => const RegisterScreen()),
+          MaterialPageRoute(builder: (context) => const LoginScreen()),
         );
       };
   }
@@ -61,14 +59,15 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
   void dispose() {
     _starController.dispose();
     _entryController.dispose();
-    _floatingController.dispose();
+    _floatingController.dispose(); // อย่าลืม dispose
     _usernameController.dispose();
     _passwordController.dispose();
-    _registerTapRecognizer.dispose();
+    _confirmPasswordController.dispose();
+    _loginTapRecognizer.dispose();
     super.dispose();
   }
 
-  // ฟังก์ชันช่วยสร้าง Minimalist Animation (ค่อยๆ สไลด์ขึ้น)
+  // ฟังก์ชันช่วยสร้าง Minimalist Animation ให้ค่อยๆ ปรากฏทีละวิดเจ็ต
   Widget _animateWidget(Widget child, int index) {
     final delay = index * 0.1;
     final start = delay;
@@ -142,33 +141,24 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                       // อนิเมชันการ์ตูนนักบินอวกาศจิ๋ว
                       _animateWidget(Center(child: _buildCuteAstronaut()), 0),
                       const SizedBox(height: 24),
-                      
+
                       _animateWidget(
                         Text(
-                          "Welcome Back",
+                          "Create Your Account",
                           style: AppTextStyles.heading1.copyWith(color: Colors.white, height: 1.2),
                         ),
                         1,
-                      ),
-                      const SizedBox(height: 8),
-                      
-                      _animateWidget(
-                        Text(
-                          "Sign in to continue your journey",
-                          style: GoogleFonts.roboto(color: Colors.white54, fontSize: 16),
-                        ),
-                        2,
                       ),
                       const SizedBox(height: 40),
                       
                       _animateWidget(
                         _buildTextFormField(
                           controller: _usernameController,
-                          label: "Username / Email",
+                          label: "Username",
                           icon: Icons.person,
-                          validator: (value) => value == null || value.isEmpty ? 'Please enter your username' : null,
+                          validator: (value) => value == null || value.isEmpty ? 'Please enter a username' : null,
                         ),
-                        3,
+                        2,
                       ),
                       const SizedBox(height: 16),
                       
@@ -178,33 +168,29 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                           label: "Password",
                           icon: Icons.lock,
                           isPassword: true,
-                          validator: (value) => value == null || value.isEmpty ? 'Please enter your password' : null,
+                          validator: (value) {
+                            if (value == null || value.isEmpty) return 'Please enter a password';
+                            if (value.length < 6) return 'Password must be at least 6 characters';
+                            return null;
+                          },
+                        ),
+                        3,
+                      ),
+                      const SizedBox(height: 16),
+                      
+                      _animateWidget(
+                        _buildTextFormField(
+                          controller: _confirmPasswordController,
+                          label: "Confirm Password",
+                          icon: Icons.lock_outline,
+                          isPassword: true,
+                          validator: (value) {
+                            if (value == null || value.isEmpty) return 'Please confirm your password';
+                            if (value != _passwordController.text) return 'Passwords do not match';
+                            return null;
+                          },
                         ),
                         4,
-                      ),
-                      const SizedBox(height: 12),
-
-                      // Forgot Password Link
-                      _animateWidget(
-                        Align(
-                          alignment: Alignment.centerRight,
-                          child: TextButton(
-                            onPressed: () {
-                              debugPrint("Forgot Password Clicked");
-                            },
-                            style: TextButton.styleFrom(
-                              foregroundColor: AppColors.accent,
-                              padding: EdgeInsets.zero,
-                              minimumSize: const Size(50, 30),
-                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                            ),
-                            child: Text(
-                              "Forgot Password?",
-                              style: GoogleFonts.roboto(fontSize: 14, fontWeight: FontWeight.w500),
-                            ),
-                          ),
-                        ),
-                        5,
                       ),
                       const SizedBox(height: 32),
                       
@@ -216,39 +202,35 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                             style: ElevatedButton.styleFrom(
                               backgroundColor: AppColors.primary,
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-                              elevation: 0,
+                              elevation: 0, 
                             ),
                             onPressed: () {
                               if (_formKey.currentState!.validate()) {
-                                debugPrint("Login Success");
-                                Navigator.pushReplacement(
-                                  context,
-                                  MaterialPageRoute(builder: (context) => const ProfileScreen()),
-                                );
+                                Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const LoginScreen()));
                               }
                             },
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
                                 Text(
-                                  "LOGIN",
+                                  "REGISTER",
                                   style: GoogleFonts.roboto(
-                                    fontSize: 16,
+                                    fontSize: 16, 
                                     fontWeight: FontWeight.bold,
                                     color: Colors.white,
-                                    letterSpacing: 2.0,
+                                    letterSpacing: 2.0, 
                                   ),
                                 ),
                               ],
                             ),
                           ),
                         ),
-                        6,
+                        5,
                       ),
                       const SizedBox(height: 32),
 
                       // --- Social Login Section ---
-                      _animateWidget(_buildSocialLogins(), 7),
+                      _animateWidget(_buildSocialLogins(), 6),
                       
                       const SizedBox(height: 32),
 
@@ -256,19 +238,19 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                         Center(
                           child: RichText(
                             text: TextSpan(
-                              text: "Don't have an account? ",
+                              text: "Already have an account? ",
                               style: GoogleFonts.roboto(color: Colors.white60, fontSize: 14),
                               children: [
                                 TextSpan(
-                                  text: "Register",
+                                  text: "Login",
                                   style: GoogleFonts.roboto(color: AppColors.accent, fontWeight: FontWeight.bold),
-                                  recognizer: _registerTapRecognizer,
+                                  recognizer: _loginTapRecognizer,
                                 ),
                               ],
                             ),
                           ),
                         ),
-                        8,
+                        7,
                       ),
                     ],
                   ),
@@ -360,7 +342,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16.0),
               child: Text(
-                "Or login with",
+                "Or register with",
                 style: GoogleFonts.roboto(color: Colors.white54, fontSize: 12),
               ),
             ),
@@ -385,6 +367,29 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
           ],
         ),
       ],
+    );
+  }
+
+  // ปุ่ม Social แบบ Minimalist
+  Widget _socialButton(dynamic icon, Color iconColor, VoidCallback onTap) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(50),
+        splashColor: Colors.white.withOpacity(0.1),
+        highlightColor: Colors.white.withOpacity(0.05),
+        child: Container(
+          width: 50,
+          height: 50,
+          alignment: Alignment.center, 
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(color: Colors.white.withOpacity(0.15), width: 1.5),
+          ),
+          child: FaIcon(icon, color: iconColor, size: 20), 
+        ),
+      ),
     );
   }
 
@@ -443,29 +448,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
       ),
     );
   }
-
-  Widget _socialButton(dynamic icon, Color iconColor, VoidCallback onTap) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(50),
-        splashColor: Colors.white.withOpacity(0.1),
-        highlightColor: Colors.white.withOpacity(0.05),
-        child: Container(
-          width: 50,
-          height: 50,
-          alignment: Alignment.center, 
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            border: Border.all(color: Colors.white.withOpacity(0.15), width: 1.5),
-          ),
-          child: FaIcon(icon, color: iconColor, size: 20), 
-        ),
-      ),
-    );
-  }
-} 
+}
 
 class _StarfieldPainter extends CustomPainter {
   _StarfieldPainter(this.progress);
@@ -486,7 +469,7 @@ class _StarfieldPainter extends CustomPainter {
     final paint = Paint()..color = Colors.white;
     for (final star in _stars) {
       final twinkle = (sin((progress + star.phase) * 2 * pi) + 1) / 2;
-      paint.color = Colors.white.withOpacity(0.15 + twinkle * 0.5);
+      paint.color = Colors.white.withOpacity(0.15 + twinkle * 0.5); 
       canvas.drawCircle(
         Offset(star.dx * size.width, star.dy * size.height),
         star.radius,
