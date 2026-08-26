@@ -2,7 +2,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:app_name_v2/constants/app_colors.dart';
 import 'package:app_name_v2/constants/app_text_styles.dart';
-import 'login_page.dart'; // เพิ่ม Import หน้า Login
+import 'login_screen.dart'; // เพิ่ม Import หน้า Login
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
