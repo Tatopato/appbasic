@@ -1,5 +1,6 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:app_name_v2/constants/app_colors.dart';
 import 'package:app_name_v2/constants/app_text_styles.dart';
 import 'login_screen.dart'; // เพิ่ม Import หน้า Login
@@ -270,12 +271,12 @@ class _ProfileScreenState extends State<ProfileScreen>
           ),
           const SizedBox(height: 14),
           Text(
-            'นราธิป สาลีกุล',
+            FirebaseAuth.instance.currentUser?.displayName ?? 'Anime Fan',
             style: AppTextStyles.heading3.copyWith(color: Colors.white),
           ),
           const SizedBox(height: 4),
           Text(
-            'gamemode30082547@gmail.com',
+            FirebaseAuth.instance.currentUser?.email ?? '',
             style: TextStyle(
               fontSize: 14,
               color: Colors.white.withOpacity(0.6),
@@ -353,7 +354,9 @@ class _ProfileScreenState extends State<ProfileScreen>
       child: SizedBox(
         width: double.infinity,
         child: OutlinedButton.icon(
-          onPressed: () {
+          onPressed: () async {
+            await FirebaseAuth.instance.signOut();
+            if (!context.mounted) return;
             // นำทางไปยังหน้า LoginScreen และเคลียร์ stack ป้องกันการกด back กลับมาหน้าเดิม
             Navigator.pushAndRemoveUntil(
               context,

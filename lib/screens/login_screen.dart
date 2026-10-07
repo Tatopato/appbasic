@@ -3,6 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter_facebook_auth/flutter_facebook_auth.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'main_screen.dart';
 //import 'profile_screen.dart';
 import '../constants/app_colors.dart';
@@ -20,6 +24,8 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
   final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
+  bool _isSubmitting = false;
+  bool _isGoogleInitialized = false;
 
   late final AnimationController _starController;
   late final AnimationController _entryController;
@@ -164,9 +170,10 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                       _animateWidget(
                         _buildTextFormField(
                           controller: _usernameController,
-                          label: "Username / Email",
-                          icon: Icons.person,
-                          validator: (value) => value == null || value.isEmpty ? 'Please enter your username' : null,
+                          label: "Email",
+                          icon: Icons.email_outlined,
+                          keyboardType: TextInputType.emailAddress,
+                          validator: _validateEmail,
                         ),
                         3,
                       ),
@@ -189,9 +196,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                         Align(
                           alignment: Alignment.centerRight,
                           child: TextButton(
-                            onPressed: () {
-                              debugPrint("Forgot Password Clicked");
-                            },
+                            onPressed: _isSubmitting ? null : _sendPasswordReset,
                             style: TextButton.styleFrom(
                               foregroundColor: AppColors.accent,
                               padding: EdgeInsets.zero,
@@ -218,16 +223,17 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
                               elevation: 0,
                             ),
-                            onPressed: () {
-                              if (_formKey.currentState!.validate()) {
-                                debugPrint("Login Success");
-                                Navigator.pushReplacement(
-                                  context,
-                                  MaterialPageRoute(builder: (context) => MainScreen()),
-                                );
-                              }
-                            },
-                            child: Row(
+                            onPressed: _isSubmitting ? null : _signIn,
+                            child: _isSubmitting
+                                ? const SizedBox(
+                                    width: 24,
+                                    height: 24,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2.5,
+                                      color: Colors.white,
+                                    ),
+                                  )
+                                : Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
                                 Text(
@@ -372,15 +378,15 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             _socialButton(FontAwesomeIcons.google, Colors.white, () {
-              debugPrint("Google Login Clicked");
+              _startSocialSignIn(_signInWithGoogle);
             }),
             const SizedBox(width: 20),
             _socialButton(FontAwesomeIcons.facebookF, const Color(0xFF1877F2), () {
-              debugPrint("Facebook Login Clicked");
+              _startSocialSignIn(_signInWithFacebook);
             }),
             const SizedBox(width: 20),
             _socialButton(FontAwesomeIcons.github, Colors.white, () {
-              debugPrint("GitHub Login Clicked");
+              _startSocialSignIn(_signInWithGitHub);
             }),
           ],
         ),
@@ -388,16 +394,152 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
     );
   }
 
+  Future<void> _signIn() async {
+    if (!_formKey.currentState!.validate()) return;
+    setState(() => _isSubmitting = true);
+    try {
+      await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: _usernameController.text.trim(),
+        password: _passwordController.text,
+      );
+      if (!mounted) return;
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => const MainScreen()),
+        (route) => false,
+      );
+    } on FirebaseAuthException catch (error) {
+      _showMessage(_authErrorMessage(error));
+    } catch (_) {
+      _showMessage('Firebase is not configured yet. Please complete the setup steps.');
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
+    }
+  }
+
+  Future<void> _startSocialSignIn(
+    Future<UserCredential> Function() signIn,
+  ) async {
+    if (_isSubmitting) return;
+    setState(() => _isSubmitting = true);
+    try {
+      await signIn();
+      if (!mounted) return;
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => const MainScreen()),
+        (route) => false,
+      );
+    } on FirebaseAuthException catch (error) {
+      _showMessage(_authErrorMessage(error));
+    } catch (error) {
+      _showMessage('Unable to sign in: $error');
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
+    }
+  }
+
+  Future<UserCredential> _signInWithGoogle() async {
+    if (kIsWeb) {
+      return FirebaseAuth.instance.signInWithPopup(GoogleAuthProvider());
+    }
+
+    if (!_isGoogleInitialized) {
+      await GoogleSignIn.instance.initialize();
+      _isGoogleInitialized = true;
+    }
+    final googleUser = await GoogleSignIn.instance.authenticate();
+    final googleAuth = googleUser.authentication;
+    final credential = GoogleAuthProvider.credential(idToken: googleAuth.idToken);
+    return FirebaseAuth.instance.signInWithCredential(credential);
+  }
+
+  Future<UserCredential> _signInWithFacebook() async {
+    if (kIsWeb) {
+      final provider = FacebookAuthProvider()..addScope('email');
+      return FirebaseAuth.instance.signInWithPopup(provider);
+    }
+
+    final result = await FacebookAuth.instance.login();
+    if (result.status == LoginStatus.cancelled) {
+      throw StateError('Facebook sign-in was cancelled.');
+    }
+    final token = result.accessToken?.tokenString;
+    if (result.status != LoginStatus.success || token == null) {
+      throw StateError(result.message ?? 'Facebook sign-in failed.');
+    }
+    return FirebaseAuth.instance.signInWithCredential(
+      FacebookAuthProvider.credential(token),
+    );
+  }
+
+  Future<UserCredential> _signInWithGitHub() {
+    final provider = GithubAuthProvider();
+    if (kIsWeb) {
+      return FirebaseAuth.instance.signInWithPopup(provider);
+    }
+    return FirebaseAuth.instance.signInWithProvider(provider);
+  }
+
+  Future<void> _sendPasswordReset() async {
+    final email = _usernameController.text.trim();
+    if (_validateEmail(email) != null) {
+      _showMessage('Enter your email first to reset your password.');
+      return;
+    }
+    try {
+      await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
+      _showMessage('Password reset email sent. Please check your inbox.');
+    } on FirebaseAuthException catch (error) {
+      _showMessage(_authErrorMessage(error));
+    } catch (_) {
+      _showMessage('Firebase is not configured yet. Please complete the setup steps.');
+    }
+  }
+
+  String? _validateEmail(String? value) {
+    final email = value?.trim() ?? '';
+    if (email.isEmpty) return 'Please enter your email';
+    if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(email)) {
+      return 'Please enter a valid email address';
+    }
+    return null;
+  }
+
+  String _authErrorMessage(FirebaseAuthException error) {
+    switch (error.code) {
+      case 'invalid-credential':
+      case 'wrong-password':
+      case 'user-not-found':
+        return 'Incorrect email or password.';
+      case 'user-disabled':
+        return 'This account has been disabled.';
+      case 'too-many-requests':
+        return 'Too many attempts. Please try again later.';
+      case 'network-request-failed':
+        return 'Please check your internet connection.';
+      default:
+        return error.message ?? 'Unable to sign in. Please try again.';
+    }
+  }
+
+  void _showMessage(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+  }
+
   Widget _buildTextFormField({
     required TextEditingController controller,
     required String label,
     required IconData icon,
     bool isPassword = false,
+    TextInputType? keyboardType,
     String? Function(String?)? validator,
   }) {
     return TextFormField(
       controller: controller,
       obscureText: isPassword,
+      keyboardType: keyboardType,
       validator: validator,
       autovalidateMode: AutovalidateMode.onUserInteraction,
       style: GoogleFonts.roboto(color: Colors.white),
