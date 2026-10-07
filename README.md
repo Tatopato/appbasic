@@ -27,3 +27,24 @@ The login screen supports Google, Facebook, and GitHub. Enable each provider tha
 - **GitHub:** Create a GitHub OAuth App, paste its Client ID and Client Secret into Firebase, and use Firebase's displayed callback URL as the OAuth app's Authorization callback URL.
 
 Each provider also needs the Firebase app configuration from `flutterfire configure`. A provider that is not enabled or fully configured will show its error instead of signing the user in.
+
+
+## Per-account data (Cloud Firestore)
+
+Home, Search and Profile read and write data under the signed-in account's
+`uid`, so every account has its own favorites, posts, profile and recent
+searches:
+
+```
+users/{uid}                  name, bio, avatar, recent searches
+users/{uid}/favorites/{id}   favorited anime (doc id = anime id)
+users/{uid}/posts/{id}       posts written by this account
+```
+
+One-time setup:
+
+1. In the Firebase console open **Build -> Firestore Database -> Create database**.
+2. Deploy the rules in `firestore.rules` (only the owner of `users/{uid}` can
+   read or write it). Either paste them in **Firestore -> Rules**, or run
+   `firebase deploy --only firestore:rules`.
+3. Run `flutter pub get`.

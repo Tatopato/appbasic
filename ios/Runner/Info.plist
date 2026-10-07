@@ -66,5 +66,9 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Choose a photo to attach to your post.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Take a photo to attach to your post.</string>
 </dict>
 </plist>

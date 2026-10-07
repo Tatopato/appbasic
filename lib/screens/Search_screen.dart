@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:app_name_v2/constants/app_colors.dart';
-import 'package:app_name_v2/constants/app_text_styles.dart';
-import 'package:app_name_v2/constants/cosmic_background.dart';
 
+import '../constants/minimal_ui.dart';
+import '../data/anime_catalog.dart';
+import '../services/user_data_service.dart';
+
+/// Search: filter the anime list by title or genre. Recent searches and
+/// favorites are stored under the signed-in account.
 class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key});
 
@@ -10,140 +13,15 @@ class SearchScreen extends StatefulWidget {
   State<SearchScreen> createState() => _SearchScreenState();
 }
 
-class _SearchScreenState extends State<SearchScreen>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _entrance;
-  late final Animation<double> _fade;
-  late final Animation<Offset> _slide;
-  bool _focused = false;
+class _SearchScreenState extends State<SearchScreen> {
+  final _service = UserDataService.instance;
+  final TextEditingController _controller = TextEditingController();
 
-  @override
-  void initState() {
-    super.initState();
-    _entrance = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 700),
-    );
-    _fade = CurvedAnimation(parent: _entrance, curve: Curves.easeOut);
-    _slide = Tween<Offset>(
-      begin: const Offset(0, 0.06),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(parent: _entrance, curve: Curves.easeOutCubic));
-    _entrance.forward();
-  }
+  late final Stream<UserProfile> _profile = _service.profileStream();
+  late final Stream<Set<String>> _favorites = _service.favoriteIdsStream();
 
-  @override
-  void dispose() {
-    _entrance.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFF060716),
-      body: Stack(
-        children: [
-          const Positioned.fill(child: CosmicBackground()),
-          SafeArea(
-            child: FadeTransition(
-              opacity: _fade,
-              child: SlideTransition(
-                position: _slide,
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Text('Search', style: AppTextStyles.heading1.copyWith(color: Colors.white)),
-                      const SizedBox(height: 16),
-                      AnimatedContainer(
-                        duration: const Duration(milliseconds: 220),
-                        curve: Curves.easeOut,
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.06),
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                            color: _focused
-                                ? AppColors.accent.withOpacity(0.7)
-                                : Colors.white.withOpacity(0.08),
-                          ),
-                          boxShadow: _focused
-                              ? [BoxShadow(color: AppColors.accent.withOpacity(0.35), blurRadius: 18)]
-                              : [],
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.search_rounded,
-                              color: _focused ? AppColors.accent : Colors.white.withOpacity(0.4),
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Focus(
-                                onFocusChange: (has) => setState(() => _focused = has),
-                                child: TextField(
-                                  autofocus: true,
-                                  style: const TextStyle(color: Colors.white, fontSize: 14),
-                                  decoration: InputDecoration(
-                                    border: InputBorder.none,
-                                    hintText: 'Search anime, manga...',
-                                    hintStyle: TextStyle(
-                                      color: Colors.white.withOpacity(0.35),
-                                      fontSize: 14,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 48),
-                      Center(
-                        child: _PulsingIcon(color: AppColors.secondary),
-                      ),
-                      const SizedBox(height: 16),
-                      Center(
-                        child: Text(
-                          'Find your next favorite anime',
-                          style: TextStyle(color: Colors.white.withOpacity(0.45), fontSize: 13),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Slowly pulsing glow icon used for the empty search state.
-class _PulsingIcon extends StatefulWidget {
-  const _PulsingIcon({required this.color});
-  final Color color;
-
-  @override
-  State<_PulsingIcon> createState() => _PulsingIconState();
-}
-
-class _PulsingIconState extends State<_PulsingIcon>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 2),
-    )..repeat(reverse: true);
-  }
+  String _query = '';
+  String? _genre; // null = All
 
   @override
   void dispose() {
@@ -151,30 +29,232 @@ class _PulsingIconState extends State<_PulsingIcon>
     super.dispose();
   }
 
+  List<Anime> get _results {
+    final q = _query.trim().toLowerCase();
+    return animeCatalog.where((a) {
+      final matchesGenre = _genre == null || a.genres.contains(_genre);
+      final matchesQuery = q.isEmpty ||
+          a.title.toLowerCase().contains(q) ||
+          a.genres.any((g) => g.toLowerCase().contains(q));
+      return matchesGenre && matchesQuery;
+    }).toList();
+  }
+
+  void _setQuery(String value) {
+    _controller.text = value;
+    _controller.selection = TextSelection.collapsed(offset: value.length);
+    setState(() => _query = value);
+  }
+
+  Future<void> _saveRecent(String value) async {
+    if (value.trim().isEmpty) return;
+    try {
+      await _service.addRecentSearch(value);
+    } catch (_) {
+      // Recent searches are a convenience; ignore failures.
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _controller,
-      builder: (context, child) {
-        final t = _controller.value;
-        return Container(
-          width: 96,
-          height: 96,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: widget.color.withOpacity(0.10 + t * 0.05),
-            boxShadow: [
-              BoxShadow(
-                color: widget.color.withOpacity(0.25 + t * 0.2),
-                blurRadius: 24 + t * 12,
-                spreadRadius: t * 3,
+    final results = _results;
+
+    // Poster is 2:3, plus ~70px for the title and genre lines underneath.
+    final tileWidth = (MediaQuery.of(context).size.width - 40 - 16) / 2;
+    final tileAspect = tileWidth / (tileWidth * 1.5 + 70);
+
+    return Scaffold(
+      backgroundColor: Mi.bg,
+      body: SafeArea(
+        bottom: false,
+        child: StreamBuilder<Set<String>>(
+          stream: _favorites,
+          builder: (context, favSnapshot) {
+            final favorites = favSnapshot.data ?? const <String>{};
+
+            return CustomScrollView(
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+              slivers: [
+                SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+                  sliver: SliverList(
+                    delegate: SliverChildListDelegate([
+                      Text('Search', style: Mi.title()),
+                      const SizedBox(height: 16),
+                      _buildSearchField(),
+                      const SizedBox(height: 14),
+                      _buildGenreChips(),
+                      if (_query.isEmpty) _buildRecent(),
+                      const SizedBox(height: 18),
+                      if (favSnapshot.hasError) ...[
+                        const MiDataError(),
+                        const SizedBox(height: 18),
+                      ],
+                    ]),
+                  ),
+                ),
+                if (results.isEmpty)
+                  SliverPadding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    sliver: SliverToBoxAdapter(
+                      child: MiEmpty(
+                        icon: Icons.search_off_rounded,
+                        text: _query.trim().isEmpty
+                            ? 'Nothing here yet.'
+                            : 'No results for "${_query.trim()}".',
+                      ),
+                    ),
+                  )
+                else
+                  SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
+                    sliver: SliverGrid(
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 2,
+                        crossAxisSpacing: 16,
+                        mainAxisSpacing: 20,
+                        childAspectRatio: tileAspect,
+                      ),
+                      delegate: SliverChildBuilderDelegate(
+                        (context, index) {
+                          final anime = results[index];
+                          return AnimeTile(
+                            anime: anime,
+                            isFavorite: favorites.contains(anime.id),
+                          );
+                        },
+                        childCount: results.length,
+                      ),
+                    ),
+                  ),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSearchField() {
+    return TextField(
+      controller: _controller,
+      onChanged: (value) => setState(() => _query = value),
+      onSubmitted: _saveRecent,
+      textInputAction: TextInputAction.search,
+      style: Mi.body(size: 15),
+      cursorColor: Mi.accent,
+      decoration: InputDecoration(
+        hintText: 'Search anime or genre',
+        hintStyle: Mi.body(size: 15, color: Mi.sub),
+        prefixIcon: const Icon(Icons.search_rounded, color: Mi.sub),
+        suffixIcon: _query.isEmpty
+            ? null
+            : IconButton(
+                icon: const Icon(Icons.close_rounded, color: Mi.sub, size: 20),
+                onPressed: () => _setQuery(''),
+              ),
+        filled: true,
+        fillColor: Mi.surface,
+        contentPadding: const EdgeInsets.symmetric(vertical: 14),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: Mi.line),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: Mi.accent, width: 1.4),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGenreChips() {
+    final genres = allGenres;
+    return SizedBox(
+      height: 36,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: genres.length + 1,
+        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        itemBuilder: (context, index) {
+          final label = index == 0 ? 'All' : genres[index - 1];
+          final selected = index == 0 ? _genre == null : _genre == label;
+          return ChoiceChip(
+            label: Text(label),
+            selected: selected,
+            showCheckmark: false,
+            onSelected: (_) =>
+                setState(() => _genre = index == 0 ? null : label),
+            labelStyle: Mi.body(
+              size: 13,
+              color: selected ? Colors.white : Mi.text,
+              weight: FontWeight.w600,
+            ),
+            backgroundColor: Mi.surface,
+            selectedColor: Mi.accent,
+            side: BorderSide(color: selected ? Mi.accent : Mi.line),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildRecent() {
+    return StreamBuilder<UserProfile>(
+      stream: _profile,
+      builder: (context, snapshot) {
+        final recent = snapshot.data?.recentSearches ?? const <String>[];
+        if (recent.isEmpty) return const SizedBox.shrink();
+
+        return Padding(
+          padding: const EdgeInsets.only(top: 18),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(child: Text('Recent', style: Mi.caption())),
+                  GestureDetector(
+                    onTap: () async {
+                      try {
+                        await _service.clearRecentSearches();
+                      } catch (_) {
+                        if (mounted) miSnack(context, "Couldn't clear history.");
+                      }
+                    },
+                    child: Text(
+                      'Clear',
+                      style: Mi.body(
+                        size: 12,
+                        color: Mi.accent,
+                        weight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (final term in recent)
+                    ActionChip(
+                      label: Text(term),
+                      onPressed: () => _setQuery(term),
+                      labelStyle: Mi.body(size: 13),
+                      backgroundColor: Mi.surface,
+                      side: const BorderSide(color: Mi.line),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                    ),
+                ],
               ),
             ],
-          ),
-          child: Icon(
-            Icons.travel_explore_rounded,
-            size: 44,
-            color: Colors.white.withOpacity(0.8),
           ),
         );
       },

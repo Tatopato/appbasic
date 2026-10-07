@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'screens/login_screen.dart';
@@ -12,6 +13,9 @@ Future<void> main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+  // Wait for Firebase to restore the saved session so we know which account
+  // (if any) is signed in before choosing the first screen.
+  await FirebaseAuth.instance.authStateChanges().first;
   runApp(const MyApp());
 }
 
@@ -27,7 +31,9 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
         useMaterial3: true,
       ),
-      initialRoute: '/intro',
+      // Already signed in -> straight to the app with this account's data.
+      initialRoute:
+          FirebaseAuth.instance.currentUser == null ? '/intro' : '/main',
       // initialRoute: '/',
 
       routes: {
